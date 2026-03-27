@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="theme-color" content="#4caf50">
+    <title>家庭饮食计划 · 共享版</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: #f5f7f0;
+            font-family: 'Segoe UI', Roboto, system-ui, 'Helvetica Neue', sans-serif;
+            color: #2c3e2f;
+            padding: 16px;
+        }
+
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 32px;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .app-header {
+            background: linear-gradient(135deg, #6b8c5c, #4caf50);
+            padding: 24px 20px;
+            color: white;
+        }
+
+        .app-header h1 {
+            font-size: 1.7rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .app-header p {
+            font-size: 0.85rem;
+            opacity: 0.9;
+            margin-top: 8px;
+        }
+
+        .toolbar {
+            padding: 16px 20px;
+            background: white;
+            border-bottom: 1px solid #e2e8e0;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .week-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .day-tab {
+            background: #f0f3ec;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #4a6741;
+        }
+
+        .day-tab.active {
+            background: #4caf50;
+            color: white;
+            box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+        }
+
+        .day-tab.today {
+            border: 2px solid #4caf50;
+            font-weight: bold;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-btn {
+            background: #f0f3ec;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            color: #4a6741;
+        }
+
+        .share-btn {
+            background: #4caf50;
+            color: white;
+        }
+
+        .main-content {
+            display: flex;
+            flex-wrap: wrap;
+            min-height: 600px;
+        }
+
+        .plan-section {
+            flex: 2;
+            min-width: 280px;
+            padding: 20px;
+            background: #fefef9;
+        }
+
+        .meal-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .meal-card {
+            background: white;
+            border-radius: 24px;
+            border: 1px solid #e5ecd9;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        }
+
+        .meal-header {
+            background: #f8faf2;
+            padding: 14px 20px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            border-bottom: 2px solid #e2e8d5;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .meal-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .add-dish-select {
+            background: white;
+            border: 1px solid #4caf50;
+            padding: 6px 12px;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .meal-content {
+            padding: 16px;
+        }
+
+        .dishes-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 12px;
+            min-height: 60px;
+        }
+
+        .dish-tag {
+            background: #e8f0e2;
+            padding: 6px 12px;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .remove-dish {
+            background: none;
+            border: none;
+            color: #d9534f;
+            cursor: pointer;
+            font-size: 0.8rem;
+            padding: 0 4px;
+        }
+
+        .empty-meal {
+            color: #bdc9ae;
+            font-size: 0.8rem;
+            font-style: italic;
+        }
+
+        /* 右侧菜品库 */
+        .menu-library {
+            width: 360px;
+            background: #ffffff;
+            border-left: 1px solid #e2e8e0;
+            padding: 20px;
+            position: sticky;
+            top: 0;
+            align-self: flex-start;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+        }
+
+        .library-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .library-header h3 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #3a5e32;
+        }
+
+        .add-custom-btn {
+            background: #4caf50;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 30px;
+            color: white;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+
+        .category-filter {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .cat-filter-btn {
+            background: #f0f3ec;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            cursor: pointer;
+        }
+
+        .cat-filter-btn.active {
+            background: #4caf50;
+            color: white;
+        }
+
+        .dish-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .dish-item {
+            background: #fefcf5;
+            border-radius: 40px;
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #e9efdf;
+        }
+
+        .dish-name {
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .dish-category-badge {
+            font-size: 0.65rem;
+            background: #e2e8d5;
+            padding: 2px 8px;
+            border-radius: 20px;
+            color: #4a6741;
+        }
+
+        .dish-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .delete-dish-btn {
+            background: #ffe6e0;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            color: #d9534f;
+        }
+
+        @media (max-width: 780px) {
+            body { padding: 8px; }
+            .main-content { flex-direction: column; }
+            .menu-library { width: 100%; border-left: none; border-top: 1px solid #e2e8e0; max-height: 400px; }
+        }
+
+        .toast-msg {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #2c3e2f;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 60px;
+            font-size: 0.85rem;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+        }
+        .toast-msg.show { opacity: 1; }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <div class="app-header">
+        <h1><i class="fas fa-calendar-alt"></i> 家庭饮食计划 · 共享版</h1>
+        <p>👩‍❤️‍👨 夫妻共享菜单 · 支持微信分享同步</p>
+    </div>
+
+    <div class="toolbar">
+        <div class="week-tabs" id="weekTabs"></div>
+        <div class="action-buttons">
+            <button class="action-btn share-btn" id="sharePlanBtn"><i class="fas fa-share-alt"></i> 分享给另一半</button>
+            <button class="action-btn" id="copyWeekBtn"><i class="fas fa-copy"></i> 复制到本周</button>
+            <button class="action-btn" id="resetDayBtn"><i class="fas fa-undo-alt"></i> 重置当天</button>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="plan-section">
+            <div id="mealPlanContainer" class="meal-grid"></div>
+        </div>
+        <div class="menu-library">
+            <div class="library-header">
+                <h3><i class="fas fa-utensils"></i> 菜品库</h3>
+                <button class="add-custom-btn" id="addCustomDishBtn"><i class="fas fa-plus-circle"></i> 自定义菜</button>
+            </div>
+            <div class="category-filter" id="categoryFilter"></div>
+            <div class="dish-list" id="dishList"></div>
+            <div style="margin-top: 16px; font-size: 0.7rem; color: #a3b899; text-align: center;">
+                <i class="fas fa-lightbulb"></i> 从下拉菜单选择菜品添加<br>
+                <i class="fas fa-trash"></i> 可删除任意菜品（包括预设）
+            </div>
+        </div>
+    </div>
+</div>
+<div id="toastMsg" class="toast-msg"></div>
+
+<script>
+    // ---------- 预设菜品库 ----------
+    let DEFAULT_DISHES = [
+        { id: "b1", name: "小米粥", category: "早餐", emoji: "🥣" },
+        { id: "b2", name: "煮鸡蛋", category: "早餐", emoji: "🥚" },
+        { id: "b3", name: "全麦面包", category: "早餐", emoji: "🍞" },
+        { id: "b4", name: "牛奶燕麦", category: "早餐", emoji: "🥛" },
+        { id: "b5", name: "煎蛋三明治", category: "早餐", emoji: "🥪" },
+        { id: "b6", name: "豆浆油条", category: "早餐", emoji: "🥛🥖" },
+        { id: "b7", name: "肉包子", category: "早餐", emoji: "🥟" },
+        { id: "l1", name: "西红柿炒蛋", category: "家常菜", emoji: "🍅🥚" },
+        { id: "l2", name: "红烧排骨", category: "硬菜", emoji: "🍖" },
+        { id: "l3", name: "酸辣土豆丝", category: "素菜", emoji: "🥔" },
+        { id: "l4", name: "蒜蓉西兰花", category: "素菜", emoji: "🥦" },
+        { id: "l5", name: "清蒸鲈鱼", category: "海鲜", emoji: "🐟" },
+        { id: "l6", name: "宫保鸡丁", category: "家常菜", emoji: "🍗" },
+        { id: "l7", name: "麻婆豆腐", category: "家常菜", emoji: "🌶️" },
+        { id: "l8", name: "红烧肉", category: "硬菜", emoji: "🥩" },
+        { id: "l9", name: "蒜蓉空心菜", category: "素菜", emoji: "🥬" },
+        { id: "l10", name: "玉米排骨汤", category: "汤类", emoji: "🌽" },
+        { id: "l11", name: "紫菜蛋花汤", category: "汤类", emoji: "🥣" },
+        { id: "l12", name: "蛋炒饭", category: "主食", emoji: "🍚" },
+        { id: "l13", name: "白米饭", category: "主食", emoji: "🍚" },
+        { id: "l14", name: "青椒肉丝", category: "家常菜", emoji: "🫑" },
+        { id: "l15", name: "糖醋里脊", category: "硬菜", emoji: "🍖" },
+        { id: "l16", name: "凉拌黄瓜", category: "凉菜", emoji: "🥒" },
+        { id: "l17", name: "皮蛋豆腐", category: "凉菜", emoji: "🥚" },
+        { id: "l18", name: "手撕包菜", category: "素菜", emoji: "🥬" },
+        { id: "l19", name: "酸菜鱼", category: "海鲜", emoji: "🐟" },
+        { id: "l20", name: "番茄牛腩", category: "硬菜", emoji: "🍅" }
+    ];
+
+    const WEEKDAYS = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+    const MEALS = [
+        { key: "breakfast", label: "🥐 早餐", icon: "fa-sun" },
+        { key: "lunch", label: "🍱 午餐", icon: "fa-utensils" },
+        { key: "dinner", label: "🌙 晚餐", icon: "fa-moon" }
+    ];
+
+    // 数据结构: mealPlan[周一][breakfast] = ["菜名1", "菜名2"]
+    let mealPlan = {};
+    let customDishes = []; // 自定义菜品
+    let deletedDishIds = []; // 记录被删除的菜品ID（包括预设）
+    let dishLibrary = []; // 实际显示的菜品库 = 预设(未删除) + 自定义
+    let currentDayIndex = 0; // 0=周一
+    let currentCategoryFilter = "全部";
+
+    // 获取当前星期几（0=周一, 6=周日）
+    const getCurrentWeekdayIndex = () => {
+        const date = new Date();
+        const day = date.getDay(); // 0=周日, 1=周一...
+        if (day === 0) return 6; // 周日映射到6
+        return day - 1; // 周一=0
+    };
+
+    // 初始化计划结构
+    const initEmptyPlan = () => {
+        const newPlan = {};
+        WEEKDAYS.forEach(day => {
+            newPlan[day] = {
+                breakfast: [],
+                lunch: [],
+                dinner: []
+            };
+        });
+        return newPlan;
+    };
+
+    // 重建菜品库（根据删除记录和自定义菜品）
+    const rebuildDishLibrary = () => {
+        // 过滤掉被删除的预设菜品
+        const availableDefault = DEFAULT_DISHES.filter(dish => !deletedDishIds.includes(dish.id));
+        dishLibrary = [...availableDefault, ...customDishes];
+    };
+
+    // 加载数据
+    const loadData = () => {
+        const storedPlan = localStorage.getItem("family_meal_plan_v3");
+        if (storedPlan) {
+            try {
+                mealPlan = JSON.parse(storedPlan);
+                WEEKDAYS.forEach(day => {
+                    MEALS.forEach(meal => {
+                        if (mealPlan[day] && !Array.isArray(mealPlan[day][meal.key])) {
+                            mealPlan[day][meal.key] = [];
+                        }
+                    });
+                });
+            } catch(e) { mealPlan = initEmptyPlan(); }
+        } else {
+            mealPlan = initEmptyPlan();
+        }
+        
+        const storedCustom = localStorage.getItem("family_custom_dishes_v3");
+        if (storedCustom) {
+            try {
+                customDishes = JSON.parse(storedCustom);
+            } catch(e) { customDishes = []; }
+        }
+        
+        const storedDeleted = localStorage.getItem("family_deleted_dishes_v3");
+        if (storedDeleted) {
+            try {
+                deletedDishIds = JSON.parse(storedDeleted);
+            } catch(e) { deletedDishIds = []; }
+        }
+        
+        rebuildDishLibrary();
+    };
+
+    const savePlan = () => {
+        localStorage.setItem("family_meal_plan_v3", JSON.stringify(mealPlan));
+    };
+
+    const saveCustomDishes = () => {
+        localStorage.setItem("family_custom_dishes_v3", JSON.stringify(customDishes));
+        rebuildDishLibrary();
+        renderDishLibrary();
+        renderCategoryFilter();
+        renderCurrentDayPlan(); // 刷新下拉菜单
+    };
+
+    const saveDeletedDishes = () => {
+        localStorage.setItem("family_deleted_dishes_v3", JSON.stringify(deletedDishIds));
+        rebuildDishLibrary();
+        renderDishLibrary();
+        renderCategoryFilter();
+        renderCurrentDayPlan(); // 刷新下拉菜单
+    };
+
+    // 删除菜品（预设和自定义都支持）
+    const deleteDish = (id, name) => {
+        if (confirm(`确定删除「${name}」吗？删除后将无法恢复`)) {
+            // 检查是否是预设菜品
+            const isDefault = DEFAULT_DISHES.some(d => d.id === id);
+            if (isDefault) {
+                if (!deletedDishIds.includes(id)) {
+                    deletedDishIds.push(id);
+                    saveDeletedDishes();
+                    showToast(`🗑️ 已删除预设菜品「${name}」`);
+                }
+            } else {
+                // 自定义菜品
+                customDishes = customDishes.filter(d => d.id !== id);
+                saveCustomDishes();
+                showToast(`🗑️ 已删除自定义菜品「${name}」`);
+            }
+        }
+    };
+
+    // 添加菜品到某餐
+    const addDishToMeal = (day, mealKey, dishName) => {
+        if (!mealPlan[day]) mealPlan[day] = { breakfast: [], lunch: [], dinner: [] };
+        if (!mealPlan[day][mealKey]) mealPlan[day][mealKey] = [];
+        if (!mealPlan[day][mealKey].includes(dishName)) {
+            mealPlan[day][mealKey].push(dishName);
+            savePlan();
+            renderCurrentDayPlan();
+            showToast(`✅ 已添加「${dishName}」到 ${day} ${getMealLabel(mealKey)}`);
+        } else {
+            showToast(`⚠️ 「${dishName}」已存在，无需重复添加`);
+        }
+    };
+
+    // 移除菜品
+    const removeDishFromMeal = (day, mealKey, dishName) => {
+        if (mealPlan[day] && mealPlan[day][mealKey]) {
+            mealPlan[day][mealKey] = mealPlan[day][mealKey].filter(d => d !== dishName);
+            savePlan();
+            renderCurrentDayPlan();
+            showToast(`🗑️ 已移除「${dishName}」`);
+        }
+    };
+
+    const getMealLabel = (mealKey) => {
+        const meal = MEALS.find(m => m.key === mealKey);
+        return meal ? meal.label : mealKey;
+    };
+
+    // 添加自定义菜品
+    const addCustomDish = () => {
+        let name = prompt("输入新菜品名称", "");
+        if (!name || name.trim() === "") return;
+        name = name.trim();
+        let category = prompt("选择分类 (早餐/家常菜/素菜/硬菜/汤类/主食/海鲜/凉菜)", "家常菜");
+        if (!category) category = "家常菜";
+        const newId = "c_" + Date.now() + "_" + Math.floor(Math.random() * 10000);
+        customDishes.push({
+            id: newId,
+            name: name,
+            category: category,
+            emoji: "🍲"
+        });
+        saveCustomDishes();
+        showToast(`➕ 已添加「${name}」到菜品库`);
+    };
+
+    // 渲染当前日期的三餐（使用下拉菜单添加菜品）
+    const renderCurrentDayPlan = () => {
+        const day = WEEKDAYS[currentDayIndex];
+        const dayPlan = mealPlan[day] || { breakfast: [], lunch: [], dinner: [] };
+        const container = document.getElementById("mealPlanContainer");
+        if (!container) return;
+
+        // 获取所有菜品名称供下拉菜单使用
+        const allDishNames = [...new Set(dishLibrary.map(d => d.name))].sort();
+
+        container.innerHTML = `
+            <div style="margin-bottom: 12px; font-size: 0.9rem; color: #6b8c5c;">
+                <i class="fas fa-calendar-day"></i> 正在编辑：<strong>${day}</strong>
+            </div>
+            ${MEALS.map(meal => {
+                const dishes = dayPlan[meal.key] || [];
+                return `
+                    <div class="meal-card">
+                        <div class="meal-header">
+                            <div class="meal-header-left">
+                                <i class="fas ${meal.icon}"></i> ${meal.label}
+                            </div>
+                            <select class="add-dish-select" data-meal="${meal.key}" data-day="${day}">
+                                <option value="">➕ 添加菜品...</option>
+                                ${allDishNames.map(dishName => `<option value="${dishName.replace(/"/g, '&quot;')}">${dishName}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="meal-content">
+                            <div class="dishes-list" data-meal="${meal.key}" data-day="${day}">
+                                ${dishes.length === 0 ? '<span class="empty-meal">暂未选择菜品，从下拉菜单选择添加</span>' : 
+                                    dishes.map(dish => `
+                                        <span class="dish-tag">
+                                            ${dish}
+                                            <button class="remove-dish" data-dish="${dish.replace(/"/g, '&quot;')}">
+                                                <i class="fas fa-times-circle"></i>
+                                            </button>
+                                        </span>
+                                    `).join('')
+                                }
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        `;
+
+        // 绑定下拉菜单添加事件
+        document.querySelectorAll('.add-dish-select').forEach(select => {
+            select.addEventListener('change', (e) => {
+                const dishName = select.value;
+                if (dishName) {
+                    const mealKey = select.getAttribute('data-meal');
+                    const day = select.getAttribute('data-day');
+                    addDishToMeal(day, mealKey, dishName);
+                    select.value = ""; // 重置选择
+                }
+            });
+        });
+
+        // 绑定删除菜品事件
+        document.querySelectorAll('.remove-dish').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const dishName = btn.getAttribute('data-dish');
+                const day = btn.closest('.dishes-list')?.getAttribute('data-day');
+                const mealKey = btn.closest('.dishes-list')?.getAttribute('data-meal');
+                if (day && mealKey && dishName) {
+                    removeDishFromMeal(day, mealKey, dishName);
+                }
+            });
+        });
+    };
+
+    // 渲染星期选项卡
+    const renderWeekTabs = () => {
+        const todayIndex = getCurrentWeekdayIndex();
+        const container = document.getElementById("weekTabs");
+        if (!container) return;
+        container.innerHTML = WEEKDAYS.map((day, idx) => `
+            <button class="day-tab ${currentDayIndex === idx ? 'active' : ''} ${todayIndex === idx ? 'today' : ''}" data-dayidx="${idx}">
+                ${day} ${todayIndex === idx ? '(今天)' : ''}
+            </button>
+        `).join('');
+        document.querySelectorAll('.day-tab').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const idx = parseInt(btn.getAttribute('data-dayidx'));
+                if (!isNaN(idx)) {
+                    currentDayIndex = idx;
+                    renderWeekTabs();
+                    renderCurrentDayPlan();
+                }
+            });
+        });
+    };
+
+    // 渲染菜品库（所有菜品都支持删除）
+    const renderDishLibrary = () => {
+        let filtered = [...dishLibrary];
+        if (currentCategoryFilter !== "全部") {
+            filtered = filtered.filter(d => d.category === currentCategoryFilter);
+        }
+        const container = document.getElementById("dishList");
+        if (!container) return;
+        if (filtered.length === 0) {
+            container.innerHTML = `<div style="text-align:center; padding:20px; color:#b0c4a2;">暂无菜品，点「自定义菜」添加</div>`;
+            return;
+        }
+        container.innerHTML = filtered.map(dish => {
+            return `
+                <div class="dish-item">
+                    <div class="dish-name">
+                        <span>${dish.emoji || '🍽️'} ${dish.name}</span>
+                        <span class="dish-category-badge">${dish.category}</span>
+                    </div>
+                    <div class="dish-actions">
+                        <button class="delete-dish-btn" data-dishid="${dish.id}" data-dishname="${dish.name.replace(/"/g, '&quot;')}">
+                            <i class="fas fa-trash"></i> 删除
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // 绑定删除菜品事件（所有菜品都可删除）
+        document.querySelectorAll('.delete-dish-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.getAttribute('data-dishid');
+                const name = btn.getAttribute('data-dishname');
+                if (id) deleteDish(id, name);
+            });
+        });
+    };
+
+    // 渲染分类筛选
+    const renderCategoryFilter = () => {
+        const categories = ["全部", ...new Set(dishLibrary.map(d => d.category))];
+        const container = document.getElementById("categoryFilter");
+        if (!container) return;
+        container.innerHTML = categories.map(cat => `
+            <button class="cat-filter-btn ${currentCategoryFilter === cat ? 'active' : ''}" data-cat="${cat}">${cat}</button>
+        `).join('');
+        document.querySelectorAll('.cat-filter-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                currentCategoryFilter = btn.getAttribute('data-cat');
+                renderCategoryFilter();
+                renderDishLibrary();
+            });
+        });
+    };
+
+    // ---------- 微信分享同步功能 ----------
+    // 将整个计划编码为 URL 参数
+    const encodePlanToUrl = () => {
+        const planData = {
+            plan: mealPlan,
+            custom: customDishes,
+            deleted: deletedDishIds
+        };
+        const json = JSON.stringify(planData);
+        // 使用 base64 编码
+        let base64 = btoa(unescape(encodeURIComponent(json)));
+        base64 = base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        return `${window.location.origin}${window.location.pathname}?share=${base64}`;
+    };
+
+    // 从 URL 参数解析计划数据
+    const getPlanFromUrl = () => {
+        const params = new URLSearchParams(window.location.search);
+        const encoded = params.get('share');
+        if (!encoded) return null;
+        try {
+            let base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+            while (base64.length % 4) base64 += '=';
+            const json = decodeURIComponent(escape(atob(base64)));
+            return JSON.parse(json);
+        } catch(e) {
+            console.warn("解析分享链接失败", e);
+            return null;
+        }
+    };
+
+    // 应用分享的计划
+    const applySharedPlan = (sharedData) => {
+        if (!sharedData || !sharedData.plan) return;
+        if (confirm(`是否加载来自另一半分享的菜单计划？\n当前计划将被替换。`)) {
+            mealPlan = sharedData.plan;
+            customDishes = sharedData.custom || [];
+            deletedDishIds = sharedData.deleted || [];
+            savePlan();
+            saveCustomDishes();
+            saveDeletedDishes();
+            renderWeekTabs();
+            renderCurrentDayPlan();
+            renderCategoryFilter();
+            renderDishLibrary();
+            showToast("✅ 已同步对方的菜单计划！");
+        }
+    };
+
+    // 分享按钮：生成链接并复制到剪贴板
+    const shareCurrentPlan = async () => {
+        const shareUrl = encodePlanToUrl();
+        try {
+            await navigator.clipboard.writeText(shareUrl);
+            showToast("📋 链接已复制！发送给另一半，对方打开即可同步菜单计划");
+        } catch (err) {
+            prompt("手动复制以下链接发送给另一半:", shareUrl);
+        }
+    };
+
+    // 复制到本周其他天
+    const copyToWeek = () => {
+        const sourceDay = WEEKDAYS[currentDayIndex];
+        const sourcePlan = JSON.parse(JSON.stringify(mealPlan[sourceDay]));
+        if (confirm(`将「${sourceDay}」的三餐计划复制到本周其他日子吗？`)) {
+            for (let i = 0; i < WEEKDAYS.length; i++) {
+                const targetDay = WEEKDAYS[i];
+                if (targetDay !== sourceDay) {
+                    mealPlan[targetDay] = JSON.parse(JSON.stringify(sourcePlan));
+                }
+            }
+            savePlan();
+            renderCurrentDayPlan();
+            showToast("📋 已复制到本周其他日子");
+        }
+    };
+
+    // 重置当天计划
+    const resetToday = () => {
+        const day = WEEKDAYS[currentDayIndex];
+        if (confirm(`重置「${day}」所有餐单？`)) {
+            mealPlan[day] = { breakfast: [], lunch: [], dinner: [] };
+            savePlan();
+            renderCurrentDayPlan();
+            showToast(`🔄 已重置 ${day} 的饮食计划`);
+        }
+    };
+
+    const showToast = (msg, duration = 2000) => {
+        const toast = document.getElementById("toastMsg");
+        toast.textContent = msg;
+        toast.classList.add("show");
+        setTimeout(() => toast.classList.remove("show"), duration);
+    };
+
+    // 初始化
+    const init = () => {
+        loadData();
+        
+        // 设置当前显示为今天
+        currentDayIndex = getCurrentWeekdayIndex();
+        
+        renderWeekTabs();
+        renderCurrentDayPlan();
+        renderCategoryFilter();
+        renderDishLibrary();
+        
+        document.getElementById("sharePlanBtn")?.addEventListener("click", shareCurrentPlan);
+        document.getElementById("copyWeekBtn")?.addEventListener("click", copyToWeek);
+        document.getElementById("resetDayBtn")?.addEventListener("click", resetToday);
+        document.getElementById("addCustomDishBtn")?.addEventListener("click", addCustomDish);
+        
+        // 检查是否有分享链接需要加载
+        const sharedData = getPlanFromUrl();
+        if (sharedData) {
+            setTimeout(() => applySharedPlan(sharedData), 100);
+            // 清除URL参数
+            const url = new URL(window.location);
+            url.searchParams.delete("share");
+            window.history.replaceState({}, "", url);
+        }
+    };
+
+    init();
+</script>
+</body>
+</html>
