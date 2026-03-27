@@ -44,10 +44,24 @@
             flex-wrap: wrap;
         }
 
-        .app-header p {
+        .custom-subtitle {
             font-size: 0.85rem;
             opacity: 0.9;
             margin-top: 8px;
+            cursor: pointer;
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 4px 12px;
+            border-radius: 40px;
+            transition: 0.2s;
+        }
+        .custom-subtitle:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .custom-subtitle.editing {
+            background: white;
+            color: #2c3e2f;
+            padding: 4px 12px;
         }
 
         .toolbar {
@@ -92,6 +106,7 @@
 
         .action-buttons {
             display: flex;
+            flex-wrap: wrap;
             gap: 10px;
         }
 
@@ -107,6 +122,16 @@
 
         .share-btn {
             background: #4caf50;
+            color: white;
+        }
+
+        .import-btn {
+            background: #2196f3;
+            color: white;
+        }
+
+        .export-btn {
+            background: #ff9800;
             color: white;
         }
 
@@ -147,6 +172,7 @@
             align-items: center;
             justify-content: space-between;
             gap: 10px;
+            flex-wrap: wrap;
         }
 
         .meal-header-left {
@@ -155,14 +181,33 @@
             gap: 10px;
         }
 
-        .add-dish-select {
-            background: white;
-            border: 1px solid #4caf50;
-            padding: 6px 12px;
-            border-radius: 30px;
+        .dish-input-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 180px;
+        }
+        .dish-search-input {
+            flex: 1;
+            padding: 8px 12px;
+            border-radius: 48px;
+            border: 1px solid #d4dec9;
+            font-size: 0.85rem;
+            font-family: inherit;
+            outline: none;
+        }
+        .dish-search-input:focus {
+            border-color: #4caf50;
+        }
+        .add-dish-btn {
+            background: #4caf50;
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 40px;
             font-size: 0.8rem;
             cursor: pointer;
-            font-family: inherit;
         }
 
         .meal-content {
@@ -313,6 +358,8 @@
             body { padding: 8px; }
             .main-content { flex-direction: column; }
             .menu-library { width: 100%; border-left: none; border-top: 1px solid #e2e8e0; max-height: 400px; }
+            .meal-header { flex-direction: column; align-items: stretch; }
+            .dish-input-container { width: 100%; }
         }
 
         .toast-msg {
@@ -337,13 +384,15 @@
 <div class="app-container">
     <div class="app-header">
         <h1><i class="fas fa-calendar-alt"></i> 家庭饮食计划 · 共享版</h1>
-        <p>👩‍❤️‍👨 夫妻共享菜单 · 支持微信分享同步</p>
+        <div id="customSubtitle" class="custom-subtitle">👩‍❤️‍👨 夫妻共享菜单 · 支持微信分享同步</div>
     </div>
 
     <div class="toolbar">
         <div class="week-tabs" id="weekTabs"></div>
         <div class="action-buttons">
-            <button class="action-btn share-btn" id="sharePlanBtn"><i class="fas fa-share-alt"></i> 分享给另一半</button>
+            <button class="action-btn export-btn" id="exportDataBtn"><i class="fas fa-download"></i> 导出数据</button>
+            <button class="action-btn import-btn" id="importDataBtn"><i class="fas fa-upload"></i> 导入数据</button>
+            <button class="action-btn share-btn" id="sharePlanBtn"><i class="fas fa-share-alt"></i> 分享链接</button>
             <button class="action-btn" id="copyWeekBtn"><i class="fas fa-copy"></i> 复制到本周</button>
             <button class="action-btn" id="resetDayBtn"><i class="fas fa-undo-alt"></i> 重置当天</button>
         </div>
@@ -361,16 +410,17 @@
             <div class="category-filter" id="categoryFilter"></div>
             <div class="dish-list" id="dishList"></div>
             <div style="margin-top: 16px; font-size: 0.7rem; color: #a3b899; text-align: center;">
-                <i class="fas fa-lightbulb"></i> 从下拉菜单选择菜品添加<br>
+                <i class="fas fa-lightbulb"></i> 在搜索框输入菜名，按「添加」即可<br>
                 <i class="fas fa-trash"></i> 可删除任意菜品（包括预设）
             </div>
         </div>
     </div>
+    <input type="file" id="importFileInput" accept=".json" style="display: none;">
 </div>
 <div id="toastMsg" class="toast-msg"></div>
 
 <script>
-    // ---------- 预设菜品库 ----------
+    // ---------- 预设菜品库（增加饮品分类）----------
     let DEFAULT_DISHES = [
         { id: "b1", name: "小米粥", category: "早餐", emoji: "🥣" },
         { id: "b2", name: "煮鸡蛋", category: "早餐", emoji: "🥚" },
@@ -398,7 +448,15 @@
         { id: "l17", name: "皮蛋豆腐", category: "凉菜", emoji: "🥚" },
         { id: "l18", name: "手撕包菜", category: "素菜", emoji: "🥬" },
         { id: "l19", name: "酸菜鱼", category: "海鲜", emoji: "🐟" },
-        { id: "l20", name: "番茄牛腩", category: "硬菜", emoji: "🍅" }
+        { id: "l20", name: "番茄牛腩", category: "硬菜", emoji: "🍅" },
+        // 新增饮品分类
+        { id: "dr1", name: "现磨咖啡", category: "饮品", emoji: "☕" },
+        { id: "dr2", name: "鲜榨橙汁", category: "饮品", emoji: "🍊" },
+        { id: "dr3", name: "冰柠檬茶", category: "饮品", emoji: "🍋" },
+        { id: "dr4", name: "热牛奶", category: "饮品", emoji: "🥛" },
+        { id: "dr5", name: "豆浆", category: "饮品", emoji: "🥛" },
+        { id: "dr6", name: "可乐", category: "饮品", emoji: "🥤" },
+        { id: "dr7", name: "雪碧", category: "饮品", emoji: "🥤" }
     ];
 
     const WEEKDAYS = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
@@ -408,44 +466,37 @@
         { key: "dinner", label: "🌙 晚餐", icon: "fa-moon" }
     ];
 
-    // 数据结构: mealPlan[周一][breakfast] = ["菜名1", "菜名2"]
     let mealPlan = {};
-    let customDishes = []; // 自定义菜品
-    let deletedDishIds = []; // 记录被删除的菜品ID（包括预设）
-    let dishLibrary = []; // 实际显示的菜品库 = 预设(未删除) + 自定义
-    let currentDayIndex = 0; // 0=周一
+    let customDishes = [];
+    let deletedDishIds = [];
+    let dishLibrary = [];
+    let currentDayIndex = 0;
     let currentCategoryFilter = "全部";
+    let customSubtitle = "👩‍❤️‍👨 夫妻共享菜单 · 支持微信分享同步";
 
     // 获取当前星期几（0=周一, 6=周日）
     const getCurrentWeekdayIndex = () => {
         const date = new Date();
-        const day = date.getDay(); // 0=周日, 1=周一...
-        if (day === 0) return 6; // 周日映射到6
-        return day - 1; // 周一=0
+        const day = date.getDay();
+        if (day === 0) return 6;
+        return day - 1;
     };
 
-    // 初始化计划结构
     const initEmptyPlan = () => {
         const newPlan = {};
         WEEKDAYS.forEach(day => {
-            newPlan[day] = {
-                breakfast: [],
-                lunch: [],
-                dinner: []
-            };
+            newPlan[day] = { breakfast: [], lunch: [], dinner: [] };
         });
         return newPlan;
     };
 
-    // 重建菜品库（根据删除记录和自定义菜品）
     const rebuildDishLibrary = () => {
-        // 过滤掉被删除的预设菜品
         const availableDefault = DEFAULT_DISHES.filter(dish => !deletedDishIds.includes(dish.id));
         dishLibrary = [...availableDefault, ...customDishes];
     };
 
-    // 加载数据
     const loadData = () => {
+        // 加载计划
         const storedPlan = localStorage.getItem("family_meal_plan_v3");
         if (storedPlan) {
             try {
@@ -462,6 +513,7 @@
             mealPlan = initEmptyPlan();
         }
         
+        // 加载自定义菜品
         const storedCustom = localStorage.getItem("family_custom_dishes_v3");
         if (storedCustom) {
             try {
@@ -469,11 +521,20 @@
             } catch(e) { customDishes = []; }
         }
         
+        // 加载已删除菜品ID
         const storedDeleted = localStorage.getItem("family_deleted_dishes_v3");
         if (storedDeleted) {
             try {
                 deletedDishIds = JSON.parse(storedDeleted);
             } catch(e) { deletedDishIds = []; }
+        }
+        
+        // 加载自定义副标题
+        const storedSubtitle = localStorage.getItem("family_custom_subtitle");
+        if (storedSubtitle) {
+            customSubtitle = storedSubtitle;
+            const subtitleDiv = document.getElementById("customSubtitle");
+            if (subtitleDiv) subtitleDiv.textContent = customSubtitle;
         }
         
         rebuildDishLibrary();
@@ -488,7 +549,7 @@
         rebuildDishLibrary();
         renderDishLibrary();
         renderCategoryFilter();
-        renderCurrentDayPlan(); // 刷新下拉菜单
+        renderCurrentDayPlan(); // 刷新输入框的datalist
     };
 
     const saveDeletedDishes = () => {
@@ -496,13 +557,19 @@
         rebuildDishLibrary();
         renderDishLibrary();
         renderCategoryFilter();
-        renderCurrentDayPlan(); // 刷新下拉菜单
+        renderCurrentDayPlan();
+    };
+
+    const saveSubtitle = (newSubtitle) => {
+        customSubtitle = newSubtitle;
+        localStorage.setItem("family_custom_subtitle", customSubtitle);
+        const subtitleDiv = document.getElementById("customSubtitle");
+        if (subtitleDiv) subtitleDiv.textContent = customSubtitle;
     };
 
     // 删除菜品（预设和自定义都支持）
     const deleteDish = (id, name) => {
         if (confirm(`确定删除「${name}」吗？删除后将无法恢复`)) {
-            // 检查是否是预设菜品
             const isDefault = DEFAULT_DISHES.some(d => d.id === id);
             if (isDefault) {
                 if (!deletedDishIds.includes(id)) {
@@ -511,7 +578,6 @@
                     showToast(`🗑️ 已删除预设菜品「${name}」`);
                 }
             } else {
-                // 自定义菜品
                 customDishes = customDishes.filter(d => d.id !== id);
                 saveCustomDishes();
                 showToast(`🗑️ 已删除自定义菜品「${name}」`);
@@ -519,8 +585,28 @@
         }
     };
 
-    // 添加菜品到某餐
+    // 添加菜品到某餐（支持自动创建新菜）
     const addDishToMeal = (day, mealKey, dishName) => {
+        if (!dishName || dishName.trim() === "") return;
+        dishName = dishName.trim();
+        
+        // 检查菜品库中是否存在该菜名
+        const existing = dishLibrary.find(d => d.name === dishName);
+        if (!existing) {
+            // 不存在，自动添加到菜品库（默认分类为“家常菜”，可让用户选择）
+            const newCategory = prompt(`「${dishName}」不在菜品库中，请选择分类：\n早餐 / 家常菜 / 素菜 / 硬菜 / 汤类 / 主食 / 海鲜 / 凉菜 / 饮品`, "家常菜");
+            if (!newCategory) return;
+            const newId = "c_" + Date.now() + "_" + Math.floor(Math.random() * 10000);
+            customDishes.push({
+                id: newId,
+                name: dishName,
+                category: newCategory,
+                emoji: "🍲"
+            });
+            saveCustomDishes();
+            showToast(`✨ 新菜「${dishName}」已加入菜品库`);
+        }
+        
         if (!mealPlan[day]) mealPlan[day] = { breakfast: [], lunch: [], dinner: [] };
         if (!mealPlan[day][mealKey]) mealPlan[day][mealKey] = [];
         if (!mealPlan[day][mealKey].includes(dishName)) {
@@ -533,7 +619,6 @@
         }
     };
 
-    // 移除菜品
     const removeDishFromMeal = (day, mealKey, dishName) => {
         if (mealPlan[day] && mealPlan[day][mealKey]) {
             mealPlan[day][mealKey] = mealPlan[day][mealKey].filter(d => d !== dishName);
@@ -548,12 +633,12 @@
         return meal ? meal.label : mealKey;
     };
 
-    // 添加自定义菜品
+    // 添加自定义菜品（传统方式）
     const addCustomDish = () => {
         let name = prompt("输入新菜品名称", "");
         if (!name || name.trim() === "") return;
         name = name.trim();
-        let category = prompt("选择分类 (早餐/家常菜/素菜/硬菜/汤类/主食/海鲜/凉菜)", "家常菜");
+        let category = prompt("选择分类 (早餐/家常菜/素菜/硬菜/汤类/主食/海鲜/凉菜/饮品)", "家常菜");
         if (!category) category = "家常菜";
         const newId = "c_" + Date.now() + "_" + Math.floor(Math.random() * 10000);
         customDishes.push({
@@ -566,17 +651,21 @@
         showToast(`➕ 已添加「${name}」到菜品库`);
     };
 
-    // 渲染当前日期的三餐（使用下拉菜单添加菜品）
+    // 渲染当前日期的三餐（使用输入框+搜索建议）
     const renderCurrentDayPlan = () => {
         const day = WEEKDAYS[currentDayIndex];
         const dayPlan = mealPlan[day] || { breakfast: [], lunch: [], dinner: [] };
         const container = document.getElementById("mealPlanContainer");
         if (!container) return;
 
-        // 获取所有菜品名称供下拉菜单使用
+        // 生成菜品列表用于 datalist
         const allDishNames = [...new Set(dishLibrary.map(d => d.name))].sort();
+        const datalistId = "dishSuggestions";
 
         container.innerHTML = `
+            <datalist id="${datalistId}">
+                ${allDishNames.map(name => `<option value="${name.replace(/"/g, '&quot;')}">`).join('')}
+            </datalist>
             <div style="margin-bottom: 12px; font-size: 0.9rem; color: #6b8c5c;">
                 <i class="fas fa-calendar-day"></i> 正在编辑：<strong>${day}</strong>
             </div>
@@ -588,14 +677,17 @@
                             <div class="meal-header-left">
                                 <i class="fas ${meal.icon}"></i> ${meal.label}
                             </div>
-                            <select class="add-dish-select" data-meal="${meal.key}" data-day="${day}">
-                                <option value="">➕ 添加菜品...</option>
-                                ${allDishNames.map(dishName => `<option value="${dishName.replace(/"/g, '&quot;')}">${dishName}</option>`).join('')}
-                            </select>
+                            <div class="dish-input-container">
+                                <input type="text" class="dish-search-input" list="${datalistId}" 
+                                       placeholder="输入菜名（支持搜索）" id="dishInput_${meal.key}">
+                                <button class="add-dish-btn" data-meal="${meal.key}" data-day="${day}">
+                                    <i class="fas fa-plus"></i> 添加
+                                </button>
+                            </div>
                         </div>
                         <div class="meal-content">
                             <div class="dishes-list" data-meal="${meal.key}" data-day="${day}">
-                                ${dishes.length === 0 ? '<span class="empty-meal">暂未选择菜品，从下拉菜单选择添加</span>' : 
+                                ${dishes.length === 0 ? '<span class="empty-meal">暂未选择菜品，输入菜名后点击添加</span>' : 
                                     dishes.map(dish => `
                                         <span class="dish-tag">
                                             ${dish}
@@ -612,15 +704,29 @@
             }).join('')}
         `;
 
-        // 绑定下拉菜单添加事件
-        document.querySelectorAll('.add-dish-select').forEach(select => {
-            select.addEventListener('change', (e) => {
-                const dishName = select.value;
+        // 绑定添加按钮事件
+        document.querySelectorAll('.add-dish-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const mealKey = btn.getAttribute('data-meal');
+                const day = btn.getAttribute('data-day');
+                const input = document.getElementById(`dishInput_${mealKey}`);
+                const dishName = input.value.trim();
                 if (dishName) {
-                    const mealKey = select.getAttribute('data-meal');
-                    const day = select.getAttribute('data-day');
                     addDishToMeal(day, mealKey, dishName);
-                    select.value = ""; // 重置选择
+                    input.value = ""; // 清空输入框
+                } else {
+                    showToast("请输入菜品名称");
+                }
+            });
+        });
+
+        // 绑定输入框回车事件
+        document.querySelectorAll('.dish-search-input').forEach(input => {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    const mealKey = input.id.split('_')[1];
+                    const btn = document.querySelector(`.add-dish-btn[data-meal="${mealKey}"]`);
+                    if (btn) btn.click();
                 }
             });
         });
@@ -661,7 +767,7 @@
         });
     };
 
-    // 渲染菜品库（所有菜品都支持删除）
+    // 渲染菜品库
     const renderDishLibrary = () => {
         let filtered = [...dishLibrary];
         if (currentCategoryFilter !== "全部") {
@@ -689,7 +795,6 @@
             `;
         }).join('');
 
-        // 绑定删除菜品事件（所有菜品都可删除）
         document.querySelectorAll('.delete-dish-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -717,67 +822,77 @@
         });
     };
 
-    // ---------- 微信分享同步功能 ----------
-    // 将整个计划编码为 URL 参数
-    const encodePlanToUrl = () => {
-        const planData = {
+    // 导出数据
+    const exportData = () => {
+        const data = {
             plan: mealPlan,
             custom: customDishes,
-            deleted: deletedDishIds
+            deleted: deletedDishIds,
+            subtitle: customSubtitle
         };
-        const json = JSON.stringify(planData);
-        // 使用 base64 编码
-        let base64 = btoa(unescape(encodeURIComponent(json)));
-        base64 = base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-        return `${window.location.origin}${window.location.pathname}?share=${base64}`;
+        const jsonStr = JSON.stringify(data, null, 2);
+        const blob = new Blob([jsonStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `家庭菜单计划_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast("📁 数据已导出，请发送给另一半");
     };
 
-    // 从 URL 参数解析计划数据
-    const getPlanFromUrl = () => {
-        const params = new URLSearchParams(window.location.search);
-        const encoded = params.get('share');
-        if (!encoded) return null;
-        try {
-            let base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
-            while (base64.length % 4) base64 += '=';
-            const json = decodeURIComponent(escape(atob(base64)));
-            return JSON.parse(json);
-        } catch(e) {
-            console.warn("解析分享链接失败", e);
-            return null;
+    // 导入数据
+    const importData = () => {
+        const fileInput = document.getElementById("importFileInput");
+        fileInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    const data = JSON.parse(ev.target.result);
+                    if (data.plan && data.custom !== undefined && data.deleted !== undefined) {
+                        mealPlan = data.plan;
+                        customDishes = data.custom;
+                        deletedDishIds = data.deleted;
+                        if (data.subtitle) saveSubtitle(data.subtitle);
+                        savePlan();
+                        saveCustomDishes();
+                        saveDeletedDishes();
+                        renderWeekTabs();
+                        renderCurrentDayPlan();
+                        renderCategoryFilter();
+                        renderDishLibrary();
+                        showToast("✅ 导入成功！菜单已同步");
+                    } else {
+                        showToast("❌ 文件格式不正确");
+                    }
+                } catch (err) {
+                    showToast("❌ 解析失败");
+                }
+                fileInput.value = "";
+            };
+            reader.readAsText(file);
+        };
+        fileInput.click();
+    };
+
+    // 分享链接（需部署后使用）
+    const shareLink = () => {
+        const url = window.location.href.split('?')[0];
+        if (url.startsWith('file://')) {
+            showToast("⚠️ 当前为本地文件，无法生成分享链接。请先部署到线上");
+        } else {
+            navigator.clipboard.writeText(url).then(() => {
+                showToast("📋 链接已复制！发送给另一半，对方打开即可共同编辑");
+            }).catch(() => {
+                prompt("手动复制链接:", url);
+            });
         }
     };
 
-    // 应用分享的计划
-    const applySharedPlan = (sharedData) => {
-        if (!sharedData || !sharedData.plan) return;
-        if (confirm(`是否加载来自另一半分享的菜单计划？\n当前计划将被替换。`)) {
-            mealPlan = sharedData.plan;
-            customDishes = sharedData.custom || [];
-            deletedDishIds = sharedData.deleted || [];
-            savePlan();
-            saveCustomDishes();
-            saveDeletedDishes();
-            renderWeekTabs();
-            renderCurrentDayPlan();
-            renderCategoryFilter();
-            renderDishLibrary();
-            showToast("✅ 已同步对方的菜单计划！");
-        }
-    };
-
-    // 分享按钮：生成链接并复制到剪贴板
-    const shareCurrentPlan = async () => {
-        const shareUrl = encodePlanToUrl();
-        try {
-            await navigator.clipboard.writeText(shareUrl);
-            showToast("📋 链接已复制！发送给另一半，对方打开即可同步菜单计划");
-        } catch (err) {
-            prompt("手动复制以下链接发送给另一半:", shareUrl);
-        }
-    };
-
-    // 复制到本周其他天
     const copyToWeek = () => {
         const sourceDay = WEEKDAYS[currentDayIndex];
         const sourcePlan = JSON.parse(JSON.stringify(mealPlan[sourceDay]));
@@ -794,7 +909,6 @@
         }
     };
 
-    // 重置当天计划
     const resetToday = () => {
         const day = WEEKDAYS[currentDayIndex];
         if (confirm(`重置「${day}」所有餐单？`)) {
@@ -815,29 +929,27 @@
     // 初始化
     const init = () => {
         loadData();
-        
-        // 设置当前显示为今天
         currentDayIndex = getCurrentWeekdayIndex();
-        
         renderWeekTabs();
         renderCurrentDayPlan();
         renderCategoryFilter();
         renderDishLibrary();
         
-        document.getElementById("sharePlanBtn")?.addEventListener("click", shareCurrentPlan);
+        // 自定义副标题编辑
+        const subtitleDiv = document.getElementById("customSubtitle");
+        subtitleDiv.addEventListener("click", () => {
+            const newText = prompt("请输入自定义文案：", customSubtitle);
+            if (newText !== null && newText.trim() !== "") {
+                saveSubtitle(newText.trim());
+            }
+        });
+        
+        document.getElementById("exportDataBtn")?.addEventListener("click", exportData);
+        document.getElementById("importDataBtn")?.addEventListener("click", importData);
+        document.getElementById("sharePlanBtn")?.addEventListener("click", shareLink);
         document.getElementById("copyWeekBtn")?.addEventListener("click", copyToWeek);
         document.getElementById("resetDayBtn")?.addEventListener("click", resetToday);
         document.getElementById("addCustomDishBtn")?.addEventListener("click", addCustomDish);
-        
-        // 检查是否有分享链接需要加载
-        const sharedData = getPlanFromUrl();
-        if (sharedData) {
-            setTimeout(() => applySharedPlan(sharedData), 100);
-            // 清除URL参数
-            const url = new URL(window.location);
-            url.searchParams.delete("share");
-            window.history.replaceState({}, "", url);
-        }
     };
 
     init();
