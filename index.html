@@ -4,8 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
     <meta name="theme-color" content="#4caf50">
-    <title>家庭饮食计划 · 共享版</title>
+    <title>家庭饮食计划 · 自动同步版</title>
+    <!-- Font Awesome 6 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- 腾讯云开发 SDK -->
+    <script src="https://imgcache.qq.com/qcloud/cloudbase/1.0.17/cloudbase.full.js"></script>
     <style>
         * {
             margin: 0;
@@ -57,11 +60,6 @@
         }
         .custom-subtitle:hover {
             background: rgba(255,255,255,0.3);
-        }
-        .custom-subtitle.editing {
-            background: white;
-            color: #2c3e2f;
-            padding: 4px 12px;
         }
 
         .toolbar {
@@ -120,21 +118,6 @@
             color: #4a6741;
         }
 
-        .share-btn {
-            background: #4caf50;
-            color: white;
-        }
-
-        .import-btn {
-            background: #2196f3;
-            color: white;
-        }
-
-        .export-btn {
-            background: #ff9800;
-            color: white;
-        }
-
         .main-content {
             display: flex;
             flex-wrap: wrap;
@@ -159,7 +142,6 @@
             border-radius: 24px;
             border: 1px solid #e5ecd9;
             overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
         }
 
         .meal-header {
@@ -247,7 +229,6 @@
             font-style: italic;
         }
 
-        /* 右侧菜品库 */
         .menu-library {
             width: 360px;
             background: #ffffff;
@@ -383,16 +364,13 @@
 <body>
 <div class="app-container">
     <div class="app-header">
-        <h1><i class="fas fa-calendar-alt"></i> 家庭饮食计划 · 共享版</h1>
-        <div id="customSubtitle" class="custom-subtitle">👩‍❤️‍👨 夫妻共享菜单 · 支持微信分享同步</div>
+        <h1><i class="fas fa-calendar-alt"></i> 家庭饮食计划 · 自动同步版</h1>
+        <div id="customSubtitle" class="custom-subtitle">👩‍❤️‍👨 夫妻共享菜单 · 自动同步</div>
     </div>
 
     <div class="toolbar">
         <div class="week-tabs" id="weekTabs"></div>
         <div class="action-buttons">
-            <button class="action-btn export-btn" id="exportDataBtn"><i class="fas fa-download"></i> 导出数据</button>
-            <button class="action-btn import-btn" id="importDataBtn"><i class="fas fa-upload"></i> 导入数据</button>
-            <button class="action-btn share-btn" id="sharePlanBtn"><i class="fas fa-share-alt"></i> 分享链接</button>
             <button class="action-btn" id="copyWeekBtn"><i class="fas fa-copy"></i> 复制到本周</button>
             <button class="action-btn" id="resetDayBtn"><i class="fas fa-undo-alt"></i> 重置当天</button>
         </div>
@@ -410,17 +388,19 @@
             <div class="category-filter" id="categoryFilter"></div>
             <div class="dish-list" id="dishList"></div>
             <div style="margin-top: 16px; font-size: 0.7rem; color: #a3b899; text-align: center;">
-                <i class="fas fa-lightbulb"></i> 在搜索框输入菜名，按「添加」即可<br>
-                <i class="fas fa-trash"></i> 可删除任意菜品（包括预设）
+                <i class="fas fa-lightbulb"></i> 输入菜名 → 点击添加 → 自动同步给对方<br>
+                <i class="fas fa-trash"></i> 可删除任意菜品
             </div>
         </div>
     </div>
-    <input type="file" id="importFileInput" accept=".json" style="display: none;">
 </div>
 <div id="toastMsg" class="toast-msg"></div>
 
 <script>
-    // ---------- 预设菜品库（增加饮品分类）----------
+    // ---------- 腾讯云开发环境ID（已为您配置）----------
+    const ENV_ID = "family-menu-1gt3jfba2150c692";
+
+    // ---------- 预设菜品库（含饮品）----------
     let DEFAULT_DISHES = [
         { id: "b1", name: "小米粥", category: "早餐", emoji: "🥣" },
         { id: "b2", name: "煮鸡蛋", category: "早餐", emoji: "🥚" },
@@ -449,7 +429,6 @@
         { id: "l18", name: "手撕包菜", category: "素菜", emoji: "🥬" },
         { id: "l19", name: "酸菜鱼", category: "海鲜", emoji: "🐟" },
         { id: "l20", name: "番茄牛腩", category: "硬菜", emoji: "🍅" },
-        // 新增饮品分类
         { id: "dr1", name: "现磨咖啡", category: "饮品", emoji: "☕" },
         { id: "dr2", name: "鲜榨橙汁", category: "饮品", emoji: "🍊" },
         { id: "dr3", name: "冰柠檬茶", category: "饮品", emoji: "🍋" },
@@ -472,9 +451,14 @@
     let dishLibrary = [];
     let currentDayIndex = 0;
     let currentCategoryFilter = "全部";
-    let customSubtitle = "👩‍❤️‍👨 夫妻共享菜单 · 支持微信分享同步";
+    let customSubtitle = "👩‍❤️‍👨 夫妻共享菜单 · 自动同步";
 
-    // 获取当前星期几（0=周一, 6=周日）
+    // 腾讯云开发实例
+    let cloudbaseApp = null;
+    let isCloudReady = false;
+    let syncTimer = null;
+
+    // 获取当前星期几（0=周一）
     const getCurrentWeekdayIndex = () => {
         const date = new Date();
         const day = date.getDay();
@@ -482,6 +466,7 @@
         return day - 1;
     };
 
+    // 初始化空计划
     const initEmptyPlan = () => {
         const newPlan = {};
         WEEKDAYS.forEach(day => {
@@ -490,13 +475,14 @@
         return newPlan;
     };
 
+    // 重建菜品库
     const rebuildDishLibrary = () => {
         const availableDefault = DEFAULT_DISHES.filter(dish => !deletedDishIds.includes(dish.id));
         dishLibrary = [...availableDefault, ...customDishes];
     };
 
-    const loadData = () => {
-        // 加载计划
+    // 从本地存储加载（作为备份）
+    const loadLocalCache = () => {
         const storedPlan = localStorage.getItem("family_meal_plan_v3");
         if (storedPlan) {
             try {
@@ -513,7 +499,6 @@
             mealPlan = initEmptyPlan();
         }
         
-        // 加载自定义菜品
         const storedCustom = localStorage.getItem("family_custom_dishes_v3");
         if (storedCustom) {
             try {
@@ -521,7 +506,6 @@
             } catch(e) { customDishes = []; }
         }
         
-        // 加载已删除菜品ID
         const storedDeleted = localStorage.getItem("family_deleted_dishes_v3");
         if (storedDeleted) {
             try {
@@ -529,7 +513,6 @@
             } catch(e) { deletedDishIds = []; }
         }
         
-        // 加载自定义副标题
         const storedSubtitle = localStorage.getItem("family_custom_subtitle");
         if (storedSubtitle) {
             customSubtitle = storedSubtitle;
@@ -540,70 +523,117 @@
         rebuildDishLibrary();
     };
 
-    const savePlan = () => {
+    // 保存到本地存储
+    const saveLocalCache = () => {
         localStorage.setItem("family_meal_plan_v3", JSON.stringify(mealPlan));
-    };
-
-    const saveCustomDishes = () => {
         localStorage.setItem("family_custom_dishes_v3", JSON.stringify(customDishes));
-        rebuildDishLibrary();
-        renderDishLibrary();
-        renderCategoryFilter();
-        renderCurrentDayPlan(); // 刷新输入框的datalist
-    };
-
-    const saveDeletedDishes = () => {
         localStorage.setItem("family_deleted_dishes_v3", JSON.stringify(deletedDishIds));
-        rebuildDishLibrary();
-        renderDishLibrary();
-        renderCategoryFilter();
-        renderCurrentDayPlan();
-    };
-
-    const saveSubtitle = (newSubtitle) => {
-        customSubtitle = newSubtitle;
         localStorage.setItem("family_custom_subtitle", customSubtitle);
-        const subtitleDiv = document.getElementById("customSubtitle");
-        if (subtitleDiv) subtitleDiv.textContent = customSubtitle;
     };
 
-    // 删除菜品（预设和自定义都支持）
-    const deleteDish = (id, name) => {
-        if (confirm(`确定删除「${name}」吗？删除后将无法恢复`)) {
-            const isDefault = DEFAULT_DISHES.some(d => d.id === id);
-            if (isDefault) {
-                if (!deletedDishIds.includes(id)) {
-                    deletedDishIds.push(id);
-                    saveDeletedDishes();
-                    showToast(`🗑️ 已删除预设菜品「${name}」`);
-                }
+    // 保存到云端（异步）
+    const saveToCloud = async () => {
+        if (!isCloudReady) return;
+        try {
+            const planData = {
+                plan: mealPlan,
+                custom: customDishes,
+                deleted: deletedDishIds,
+                subtitle: customSubtitle
+            };
+            const res = await cloudbaseApp.callFunction({
+                name: 'updatePlan',
+                data: { planData }
+            });
+            if (res.result && res.result.success) {
+                console.log("云端同步成功");
             } else {
-                customDishes = customDishes.filter(d => d.id !== id);
-                saveCustomDishes();
-                showToast(`🗑️ 已删除自定义菜品「${name}」`);
+                console.warn("云端同步失败", res.result);
             }
+        } catch (err) {
+            console.error("调用云函数失败", err);
         }
     };
 
-    // 添加菜品到某餐（支持自动创建新菜）
+    // 从云端加载
+    const loadFromCloud = async () => {
+        if (!isCloudReady) return false;
+        try {
+            const res = await cloudbaseApp.callFunction({
+                name: 'getPlan',
+                data: {}
+            });
+            if (res.result && res.result.success && res.result.data) {
+                const cloudData = res.result.data;
+                mealPlan = cloudData.plan;
+                customDishes = cloudData.custom || [];
+                deletedDishIds = cloudData.deleted || [];
+                customSubtitle = cloudData.subtitle || customSubtitle;
+                rebuildDishLibrary();
+                saveLocalCache(); // 同步到本地缓存
+                renderAll(); // 刷新界面
+                console.log("从云端加载成功");
+                return true;
+            } else {
+                console.log("云端无数据，使用本地缓存");
+                return false;
+            }
+        } catch (err) {
+            console.error("加载云端失败", err);
+            return false;
+        }
+    };
+
+    // 同步包装：本地保存后自动上传云端
+    const syncDataAndRender = () => {
+        saveLocalCache();
+        saveToCloud();
+        renderAll();
+    };
+
+    // 更新计划并同步
+    const updatePlanAndSync = (newPlan) => {
+        mealPlan = newPlan;
+        syncDataAndRender();
+    };
+
+    // 更新自定义菜品并同步
+    const updateCustomAndSync = (newCustom) => {
+        customDishes = newCustom;
+        rebuildDishLibrary();
+        syncDataAndRender();
+    };
+
+    // 更新删除记录并同步
+    const updateDeletedAndSync = (newDeleted) => {
+        deletedDishIds = newDeleted;
+        rebuildDishLibrary();
+        syncDataAndRender();
+    };
+
+    // 更新副标题并同步
+    const updateSubtitleAndSync = (newSubtitle) => {
+        customSubtitle = newSubtitle;
+        const subtitleDiv = document.getElementById("customSubtitle");
+        if (subtitleDiv) subtitleDiv.textContent = customSubtitle;
+        syncDataAndRender();
+    };
+
+    // ----- 以下为业务逻辑函数（与原版一致，但调用同步函数）-----
     const addDishToMeal = (day, mealKey, dishName) => {
         if (!dishName || dishName.trim() === "") return;
         dishName = dishName.trim();
         
-        // 检查菜品库中是否存在该菜名
         const existing = dishLibrary.find(d => d.name === dishName);
         if (!existing) {
-            // 不存在，自动添加到菜品库（默认分类为“家常菜”，可让用户选择）
             const newCategory = prompt(`「${dishName}」不在菜品库中，请选择分类：\n早餐 / 家常菜 / 素菜 / 硬菜 / 汤类 / 主食 / 海鲜 / 凉菜 / 饮品`, "家常菜");
             if (!newCategory) return;
             const newId = "c_" + Date.now() + "_" + Math.floor(Math.random() * 10000);
-            customDishes.push({
-                id: newId,
-                name: dishName,
-                category: newCategory,
-                emoji: "🍲"
-            });
-            saveCustomDishes();
+            const newDish = { id: newId, name: dishName, category: newCategory, emoji: "🍲" };
+            customDishes.push(newDish);
+            rebuildDishLibrary();
+            saveLocalCache();
+            saveToCloud();
             showToast(`✨ 新菜「${dishName}」已加入菜品库`);
         }
         
@@ -611,8 +641,7 @@
         if (!mealPlan[day][mealKey]) mealPlan[day][mealKey] = [];
         if (!mealPlan[day][mealKey].includes(dishName)) {
             mealPlan[day][mealKey].push(dishName);
-            savePlan();
-            renderCurrentDayPlan();
+            syncDataAndRender();
             showToast(`✅ 已添加「${dishName}」到 ${day} ${getMealLabel(mealKey)}`);
         } else {
             showToast(`⚠️ 「${dishName}」已存在，无需重复添加`);
@@ -622,8 +651,7 @@
     const removeDishFromMeal = (day, mealKey, dishName) => {
         if (mealPlan[day] && mealPlan[day][mealKey]) {
             mealPlan[day][mealKey] = mealPlan[day][mealKey].filter(d => d !== dishName);
-            savePlan();
-            renderCurrentDayPlan();
+            syncDataAndRender();
             showToast(`🗑️ 已移除「${dishName}」`);
         }
     };
@@ -633,7 +661,25 @@
         return meal ? meal.label : mealKey;
     };
 
-    // 添加自定义菜品（传统方式）
+    const deleteDish = (id, name) => {
+        if (confirm(`确定删除「${name}」吗？删除后将无法恢复`)) {
+            const isDefault = DEFAULT_DISHES.some(d => d.id === id);
+            if (isDefault) {
+                if (!deletedDishIds.includes(id)) {
+                    deletedDishIds.push(id);
+                    rebuildDishLibrary();
+                    syncDataAndRender();
+                    showToast(`🗑️ 已删除预设菜品「${name}」`);
+                }
+            } else {
+                customDishes = customDishes.filter(d => d.id !== id);
+                rebuildDishLibrary();
+                syncDataAndRender();
+                showToast(`🗑️ 已删除自定义菜品「${name}」`);
+            }
+        }
+    };
+
     const addCustomDish = () => {
         let name = prompt("输入新菜品名称", "");
         if (!name || name.trim() === "") return;
@@ -641,24 +687,43 @@
         let category = prompt("选择分类 (早餐/家常菜/素菜/硬菜/汤类/主食/海鲜/凉菜/饮品)", "家常菜");
         if (!category) category = "家常菜";
         const newId = "c_" + Date.now() + "_" + Math.floor(Math.random() * 10000);
-        customDishes.push({
-            id: newId,
-            name: name,
-            category: category,
-            emoji: "🍲"
-        });
-        saveCustomDishes();
+        customDishes.push({ id: newId, name: name, category: category, emoji: "🍲" });
+        rebuildDishLibrary();
+        syncDataAndRender();
         showToast(`➕ 已添加「${name}」到菜品库`);
     };
 
-    // 渲染当前日期的三餐（使用输入框+搜索建议）
+    const copyToWeek = () => {
+        const sourceDay = WEEKDAYS[currentDayIndex];
+        const sourcePlan = JSON.parse(JSON.stringify(mealPlan[sourceDay]));
+        if (confirm(`将「${sourceDay}」的三餐计划复制到本周其他日子吗？`)) {
+            for (let i = 0; i < WEEKDAYS.length; i++) {
+                const targetDay = WEEKDAYS[i];
+                if (targetDay !== sourceDay) {
+                    mealPlan[targetDay] = JSON.parse(JSON.stringify(sourcePlan));
+                }
+            }
+            syncDataAndRender();
+            showToast("📋 已复制到本周其他日子");
+        }
+    };
+
+    const resetToday = () => {
+        const day = WEEKDAYS[currentDayIndex];
+        if (confirm(`重置「${day}」所有餐单？`)) {
+            mealPlan[day] = { breakfast: [], lunch: [], dinner: [] };
+            syncDataAndRender();
+            showToast(`🔄 已重置 ${day} 的饮食计划`);
+        }
+    };
+
+    // ----- 渲染函数（与原版一致）-----
     const renderCurrentDayPlan = () => {
         const day = WEEKDAYS[currentDayIndex];
         const dayPlan = mealPlan[day] || { breakfast: [], lunch: [], dinner: [] };
         const container = document.getElementById("mealPlanContainer");
         if (!container) return;
 
-        // 生成菜品列表用于 datalist
         const allDishNames = [...new Set(dishLibrary.map(d => d.name))].sort();
         const datalistId = "dishSuggestions";
 
@@ -704,7 +769,6 @@
             }).join('')}
         `;
 
-        // 绑定添加按钮事件
         document.querySelectorAll('.add-dish-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const mealKey = btn.getAttribute('data-meal');
@@ -713,14 +777,13 @@
                 const dishName = input.value.trim();
                 if (dishName) {
                     addDishToMeal(day, mealKey, dishName);
-                    input.value = ""; // 清空输入框
+                    input.value = "";
                 } else {
                     showToast("请输入菜品名称");
                 }
             });
         });
 
-        // 绑定输入框回车事件
         document.querySelectorAll('.dish-search-input').forEach(input => {
             input.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
@@ -731,7 +794,6 @@
             });
         });
 
-        // 绑定删除菜品事件
         document.querySelectorAll('.remove-dish').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -745,7 +807,6 @@
         });
     };
 
-    // 渲染星期选项卡
     const renderWeekTabs = () => {
         const todayIndex = getCurrentWeekdayIndex();
         const container = document.getElementById("weekTabs");
@@ -767,7 +828,6 @@
         });
     };
 
-    // 渲染菜品库
     const renderDishLibrary = () => {
         let filtered = [...dishLibrary];
         if (currentCategoryFilter !== "全部") {
@@ -805,7 +865,6 @@
         });
     };
 
-    // 渲染分类筛选
     const renderCategoryFilter = () => {
         const categories = ["全部", ...new Set(dishLibrary.map(d => d.category))];
         const container = document.getElementById("categoryFilter");
@@ -822,101 +881,10 @@
         });
     };
 
-    // 导出数据
-    const exportData = () => {
-        const data = {
-            plan: mealPlan,
-            custom: customDishes,
-            deleted: deletedDishIds,
-            subtitle: customSubtitle
-        };
-        const jsonStr = JSON.stringify(data, null, 2);
-        const blob = new Blob([jsonStr], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `家庭菜单计划_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showToast("📁 数据已导出，请发送给另一半");
-    };
-
-    // 导入数据
-    const importData = () => {
-        const fileInput = document.getElementById("importFileInput");
-        fileInput.onchange = (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                try {
-                    const data = JSON.parse(ev.target.result);
-                    if (data.plan && data.custom !== undefined && data.deleted !== undefined) {
-                        mealPlan = data.plan;
-                        customDishes = data.custom;
-                        deletedDishIds = data.deleted;
-                        if (data.subtitle) saveSubtitle(data.subtitle);
-                        savePlan();
-                        saveCustomDishes();
-                        saveDeletedDishes();
-                        renderWeekTabs();
-                        renderCurrentDayPlan();
-                        renderCategoryFilter();
-                        renderDishLibrary();
-                        showToast("✅ 导入成功！菜单已同步");
-                    } else {
-                        showToast("❌ 文件格式不正确");
-                    }
-                } catch (err) {
-                    showToast("❌ 解析失败");
-                }
-                fileInput.value = "";
-            };
-            reader.readAsText(file);
-        };
-        fileInput.click();
-    };
-
-    // 分享链接（需部署后使用）
-    const shareLink = () => {
-        const url = window.location.href.split('?')[0];
-        if (url.startsWith('file://')) {
-            showToast("⚠️ 当前为本地文件，无法生成分享链接。请先部署到线上");
-        } else {
-            navigator.clipboard.writeText(url).then(() => {
-                showToast("📋 链接已复制！发送给另一半，对方打开即可共同编辑");
-            }).catch(() => {
-                prompt("手动复制链接:", url);
-            });
-        }
-    };
-
-    const copyToWeek = () => {
-        const sourceDay = WEEKDAYS[currentDayIndex];
-        const sourcePlan = JSON.parse(JSON.stringify(mealPlan[sourceDay]));
-        if (confirm(`将「${sourceDay}」的三餐计划复制到本周其他日子吗？`)) {
-            for (let i = 0; i < WEEKDAYS.length; i++) {
-                const targetDay = WEEKDAYS[i];
-                if (targetDay !== sourceDay) {
-                    mealPlan[targetDay] = JSON.parse(JSON.stringify(sourcePlan));
-                }
-            }
-            savePlan();
-            renderCurrentDayPlan();
-            showToast("📋 已复制到本周其他日子");
-        }
-    };
-
-    const resetToday = () => {
-        const day = WEEKDAYS[currentDayIndex];
-        if (confirm(`重置「${day}」所有餐单？`)) {
-            mealPlan[day] = { breakfast: [], lunch: [], dinner: [] };
-            savePlan();
-            renderCurrentDayPlan();
-            showToast(`🔄 已重置 ${day} 的饮食计划`);
-        }
+    const renderAll = () => {
+        renderCurrentDayPlan();
+        renderDishLibrary();
+        renderCategoryFilter();
     };
 
     const showToast = (msg, duration = 2000) => {
@@ -926,30 +894,59 @@
         setTimeout(() => toast.classList.remove("show"), duration);
     };
 
-    // 初始化
-    const init = () => {
-        loadData();
+    // ----- 初始化云开发 -----
+    const initCloud = async () => {
+        if (!ENV_ID || ENV_ID === "YOUR_ENV_ID") {
+            showToast("⚠️ 请先配置腾讯云开发环境ID");
+            return false;
+        }
+        try {
+            cloudbaseApp = cloudbase.init({ env: ENV_ID });
+            const auth = cloudbaseApp.auth({ persistence: 'local' });
+            await auth.anonymousAuthProvider().signIn();
+            isCloudReady = true;
+            console.log("云开发初始化成功，匿名登录完成");
+            return true;
+        } catch (err) {
+            console.error("云开发初始化失败", err);
+            showToast("云服务连接失败，将使用本地存储");
+            return false;
+        }
+    };
+
+    // ----- 主入口 -----
+    const init = async () => {
+        // 先加载本地缓存
+        loadLocalCache();
+        renderWeekTabs();
+        renderAll();
         currentDayIndex = getCurrentWeekdayIndex();
         renderWeekTabs();
         renderCurrentDayPlan();
-        renderCategoryFilter();
-        renderDishLibrary();
+
+        // 初始化云开发并尝试从云端加载
+        const cloudOk = await initCloud();
+        if (cloudOk) {
+            await loadFromCloud();
+            // 启动定时轮询（每5秒）
+            if (syncTimer) clearInterval(syncTimer);
+            syncTimer = setInterval(async () => {
+                await loadFromCloud();
+            }, 5000);
+        }
+
+        // 绑定事件
+        document.getElementById("copyWeekBtn")?.addEventListener("click", copyToWeek);
+        document.getElementById("resetDayBtn")?.addEventListener("click", resetToday);
+        document.getElementById("addCustomDishBtn")?.addEventListener("click", addCustomDish);
         
-        // 自定义副标题编辑
         const subtitleDiv = document.getElementById("customSubtitle");
         subtitleDiv.addEventListener("click", () => {
             const newText = prompt("请输入自定义文案：", customSubtitle);
             if (newText !== null && newText.trim() !== "") {
-                saveSubtitle(newText.trim());
+                updateSubtitleAndSync(newText.trim());
             }
         });
-        
-        document.getElementById("exportDataBtn")?.addEventListener("click", exportData);
-        document.getElementById("importDataBtn")?.addEventListener("click", importData);
-        document.getElementById("sharePlanBtn")?.addEventListener("click", shareLink);
-        document.getElementById("copyWeekBtn")?.addEventListener("click", copyToWeek);
-        document.getElementById("resetDayBtn")?.addEventListener("click", resetToday);
-        document.getElementById("addCustomDishBtn")?.addEventListener("click", addCustomDish);
     };
 
     init();
